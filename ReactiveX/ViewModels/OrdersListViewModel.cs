@@ -12,6 +12,9 @@ namespace ReactiveX
 {
 	public class OrdersListViewModel : ReactiveObject
 	{
+		// Demo flag.
+		static int count = 1;
+
 		public ReactiveList<OrderViewModel> Orders { get; protected set; }
 		public ReactiveCommand<List<OrderViewModel>> LoadOrdersCommand { get; protected set; }
 
@@ -28,7 +31,11 @@ namespace ReactiveX
 				this.RaiseAndSetIfChanged(ref _canLoadOrders, value);
 			}  
 		}
-		static int count = 1;
+
+		IDisposable _connectivityChangedDisposable;
+		IDisposable _canLoadOrdersDisposable;
+		IDisposable _loadOrdersCommandDisposable;
+
 		public OrdersListViewModel()
 		{
 			_ordersRepository = new OrdersWebRepository ();
@@ -36,24 +43,27 @@ namespace ReactiveX
 			CanLoadOrders = _connectivity.IsConnected;
 			Orders = new ReactiveList<OrderViewModel>();
 
-			// CoolStuff: We're describing here, in a *declarative way*, the
-			// conditions in which the LoadTeamList command is enabled. Now,
-			// our Command IsEnabled is perfectly efficient, because we're only
-			// updating the UI in the scenario when it should change.
+			// Convert a .NET event to an observable 
+			// and subscribe to an observer *anonymous delegate extension*.
 			IObservable<EventPattern<ConnectivityChangedEventArgs>> connectivityChangedObservable = 
 				Observable.FromEventPattern<ConnectivityChangedEventArgs>(
 					_connectivity, 
 					"ConnectivityChanged",
 					RxApp.MainThreadScheduler);
 
-			connectivityChangedObservable.Subscribe(evt => {
+			// When the IConnectivity.ConnectivityChanged event is raised
+			// the observable will push me the ConnectivityChangedEventArgs.
+			_connectivityChangedDisposable = connectivityChangedObservable.Subscribe(evt => {
+				// Set if we can load orders
 				CanLoadOrders = evt.EventArgs.IsConnected;
 			});
 
+			// Cool stuff! ReactiveUI offers some Rx helpers.
+			// When the CanLoadOrders property changes let me know.
 			IObservable<bool> canLoadOrdersObservable = 
 				this.WhenAny(x => x.CanLoadOrders, x => x.Value);
 
-			// CoolStuff: ReactiveCommands have built-in support for background
+			// More Cool stuff! ReactiveCommands have built-in support for background
 			// operations. RxCmd guarantees that this block will only run exactly
 			// once at a time, and that the CanExecute will auto-disable while it
 			// is running.
@@ -64,11 +74,11 @@ namespace ReactiveX
 					return await _ordersRepository.GetAsync();;
 				});
 
-			// CoolStuff: ReactiveCommands are themselves IObservables, whose value
+			// And if that is not Cool stuff! ReactiveCommands are themselves IObservables, whose value
 			// are the results from the async method, guaranteed to arrive on the UI
 			// thread. We're going to take the list of teams that the background
 			// operation loaded, and put them into our TeamList.
-			LoadOrdersCommand.Subscribe(
+			_loadOrdersCommandDisposable = LoadOrdersCommand.Subscribe(
 				orders => {
 					foreach (OrderViewModel order in orders)
 					{
@@ -81,12 +91,20 @@ namespace ReactiveX
 					UserError.Throw("Fetching orders exception: " + ex.Message, ex);
 				});
 
-			// CoolStuff: Whenever the Email address changes, we're going to wait
-			// for one second of "dead airtime", then invoke the LoadTeamList
+			// Niiiiice! Whenever the CanLoadOrders changes, we're going to wait
+			// for one second of "dead airtime", then invoke the LoadOrdersCommand
 			// command.
-			canLoadOrdersObservable
+			_canLoadOrdersDisposable = canLoadOrdersObservable
+				.Where(x => x)
 				.Throttle(TimeSpan.FromSeconds(1), RxApp.MainThreadScheduler)
 				.InvokeCommand(this, x => x.LoadOrdersCommand);
+		}
+
+		public void Dispose()
+		{
+			_connectivityChangedDisposable.Dispose ();
+			_loadOrdersCommandDisposable.Dispose ();
+			_canLoadOrdersDisposable.Dispose ();
 		}
 	}
 }

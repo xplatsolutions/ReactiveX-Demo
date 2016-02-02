@@ -26,14 +26,15 @@ namespace ReactiveX
 
 		public async Task<List<OrderViewModel>> GetAsync()
 		{
-			// Create a cold observable with Defer, everytime someone subscribes it calls the internal method
+			// Create a cold observable with Defer, 
+			// everytime someone subscribes it calls the internal method.
+			// IObservable IS AWAITABLE!
 			return await Observable.Defer(() => GetAsyncInternal().ToObservable()) 
 				.Timeout(TimeSpan.FromSeconds(5))
-				.Do(_ => Debug.WriteLine("Send to insights!")) // Timed out, do something
 				.Retry(4) // Retry couple of times, it's fine
 				.Catch<List<OrderViewModel>, Exception>((ex) => {
 					Debug.WriteLine("Report exception to insights:" + ex); // Catch the exception and do something
-					return Observable.Return(new List<OrderViewModel>()); // Return a hot observable with a new list of orders
+					return Observable.Return(new List<OrderViewModel>()); // Return a hot observable
 				});
 		}
 

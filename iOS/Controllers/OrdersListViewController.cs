@@ -39,10 +39,14 @@ namespace ReactiveX.iOS
 				TableView,
 				ViewModel.Orders,
 				OrderCell.Key,
-				40.0f, 
-				cell => {
-//					Console.WriteLine(cell);
-			});
+				40.0f);
+		}
+
+		public override void ViewDidUnload ()
+		{
+			ViewModel.Dispose ();
+
+			base.ViewDidUnload ();
 		}
 	}
 }

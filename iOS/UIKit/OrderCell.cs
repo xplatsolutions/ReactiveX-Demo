@@ -35,11 +35,15 @@ namespace ReactiveX.iOS
 		public override void AwakeFromNib()
 		{
 			base.AwakeFromNib();
+
+			// When the ViewModel property is set to not null let me know.
 			this.WhenAny(x => x.ViewModel, x => x.Value)
 				.Where(x => x != null)
 				.Subscribe(x => { 
-					TextLabel.Text = x.OrderNumber; 
+					// OneWayBind the ViewModel.OrderNumber to the OrderCell.TextLabel.Text
+					this.OneWayBind(ViewModel, vm => vm.OrderNumber, v => v.TextLabel.Text);
 				});
+			
 		}
 
 		public static OrderCell Create()
