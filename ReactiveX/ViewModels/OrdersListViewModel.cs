@@ -40,8 +40,10 @@ namespace ReactiveX
 		{
 			_ordersRepository = new OrdersWebRepository ();
 			_connectivity = CrossConnectivity.Current;
-			CanLoadOrders = _connectivity.IsConnected;
 			Orders = new ReactiveList<OrderViewModel>();
+
+			// Initial connectivity availability
+			CanLoadOrders = _connectivity.IsConnected;
 
 			// Convert a .NET event to an observable 
 			// and subscribe to an observer *anonymous delegate extension*.
@@ -78,7 +80,7 @@ namespace ReactiveX
 			// are the results from the async method, guaranteed to arrive on the UI
 			// thread. We're going to take the list of teams that the background
 			// operation loaded, and put them into our TeamList.
-			_loadOrdersCommandDisposable = LoadOrdersCommand.Subscribe(
+			_loadOrdersCommandDisposable = LoadOrdersCommand.ObserveOn(RxApp.MainThreadScheduler).Subscribe(
 				orders => {
 					foreach (OrderViewModel order in orders)
 					{
