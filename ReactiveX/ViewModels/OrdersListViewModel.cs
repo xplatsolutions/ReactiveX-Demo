@@ -82,12 +82,15 @@ namespace ReactiveX
 			// operation loaded, and put them into our TeamList.
 			_loadOrdersCommandDisposable = LoadOrdersCommand.ObserveOn(RxApp.MainThreadScheduler).Subscribe(
 				orders => {
-					foreach (OrderViewModel order in orders)
-					{
-						order.OrderNumber = string.Format("{0} - {1}", order.OrderNumber, count);
-					}
+					int currentCount = count;
 					count++;
-					Orders.InsertRange(0, orders);
+
+					IEnumerable<OrderViewModel> ordersTranformed = orders.Select(o => {
+						o.OrderNumber = string.Format("{0} - {1}", o.OrderNumber, currentCount);
+						return o;
+					});
+
+					Orders.InsertRange(0, ordersTranformed);
 				},
 				ex => {
 					UserError.Throw("Fetching orders exception: " + ex.Message, ex);
